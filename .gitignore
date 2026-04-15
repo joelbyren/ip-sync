@@ -1,0 +1,17 @@
+# Build output
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+.vs/
+
+# Rider
+.idea/
+
+# dotnet publish output
+publish/
+
+# Runtime config saved by IpSync
+ipsync-config.json

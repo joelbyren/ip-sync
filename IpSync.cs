@@ -14,15 +14,15 @@
 //   1. Put this file anywhere and run: dotnet run IpSync.cs
 //      (or compile: dotnet publish IpSync.cs -c Release -r linux-x64 --self-contained
 //                   dotnet publish IpSync.cs -c Release -r win-x64   --self-contained)
-//   2. Friends (Linux only): run with sudo, choose [S]erver, follow prompts — config is saved
+//   2. Friends: run as admin/sudo, choose [S]erver, follow prompts — config is saved
 //   3. You:     run normally, choose [C]lient, enter token and friends — config is saved
 //   4. After setup, just run with no arguments — no input needed
 //      To change config or add friends later: dotnet run IpSync.cs --setup
 //
 // HOW IT WORKS:
-//   - Server (friend's machine, Linux only): listens on a port, validates a shared token,
+//   - Server (friend's machine): listens on a port, validates a shared token,
 //     reads your public IP from the incoming TCP connection, and writes/updates
-//     an entry in /etc/hosts like "1.2.3.4  minecraft-home"
+//     the hosts file entry for minecraft-home (requires admin/sudo)
 //   - Client (your machine):     POSTs your token to each friend's server.
 //     No IP lookup needed — the server sees your IP from the connection itself.
 //
@@ -33,14 +33,20 @@
 //   - Friends should only run the server while they want to sync, not 24/7
 
 using System.Net;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 const string CONFIG_FILE = "ipsync-config.json";
 const string HOSTS_HOSTNAME = "minecraft-home";  // hostname friends use in Minecraft to connect
-const string HOSTS_FILE = "/etc/hosts";
 const int MAX_BODY_BYTES = 4096;              // token payload is <100 bytes; cap to limit abuse
+
+bool onWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+string HOSTS_FILE = onWindows
+    ? @"C:\Windows\System32\drivers\etc\hosts"
+    : "/etc/hosts";
 
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
@@ -62,7 +68,7 @@ else if (config.Mode == "client")
 
 async Task RunServer(Config cfg)
 {
-    WarnIfNotRoot();
+    WarnIfNotElevated();
 
     string url = $"http://+:{cfg.ServerPort}/ipsync/";
     var listener = new HttpListener();
@@ -73,7 +79,7 @@ async Task RunServer(Config cfg)
     {
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine($"Could not start listener on port {cfg.ServerPort}: {ex.Message}");
-        Console.WriteLine("Try running with: sudo dotnet run");
+        Console.WriteLine(ElevateHint());
         Console.ResetColor();
         return;
     }
@@ -208,7 +214,7 @@ async Task ChooseMode(Config cfg)
         Console.WriteLine($"(Current mode: {cfg.Mode} — reconfiguring)\n");
 
     Console.WriteLine("Are you:");
-    Console.WriteLine("  [S] A FRIEND receiving IP updates        (needs sudo for /etc/hosts)");
+    Console.WriteLine("  [S] A FRIEND receiving IP updates        (needs admin/sudo to write hosts file)");
     Console.WriteLine("  [C] The SERVER OWNER pushing your IP out (run normally)");
     Console.Write("\nChoice: ");
     var choice = Console.ReadLine()?.Trim().ToUpperInvariant();
@@ -310,21 +316,33 @@ bool UpdateHostsFile(string newIp)
     {
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine($"Failed to write {HOSTS_FILE}: {ex.Message}");
-        Console.WriteLine("Run with: sudo dotnet run");
+        Console.WriteLine(ElevateHint());
         Console.ResetColor();
         try { File.Delete(tmp); } catch { }
         return false;
     }
 }
 
-void WarnIfNotRoot()
+bool IsElevated()
 {
-    if (Environment.GetEnvironmentVariable("USER") != "root" &&
-        Environment.GetEnvironmentVariable("SUDO_USER") == null)
+    if (onWindows)
+        return new WindowsPrincipal(WindowsIdentity.GetCurrent())
+                   .IsInRole(WindowsBuiltInRole.Administrator);
+    return Environment.GetEnvironmentVariable("USER") == "root"
+        || Environment.GetEnvironmentVariable("SUDO_USER") != null;
+}
+
+string ElevateHint() => onWindows
+    ? "Re-run as Administrator (right-click → Run as administrator)"
+    : "Restart with: sudo dotnet run";
+
+void WarnIfNotElevated()
+{
+    if (!IsElevated())
     {
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"WARNING: Not running as root. Writing to {HOSTS_FILE} will fail.");
-        Console.WriteLine("Restart with: sudo dotnet run");
+        Console.WriteLine($"WARNING: Not running as {(onWindows ? "Administrator" : "root")}. Writing to {HOSTS_FILE} will fail.");
+        Console.WriteLine(ElevateHint());
         Console.ResetColor();
         Console.WriteLine();
     }

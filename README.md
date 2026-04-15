@@ -18,7 +18,7 @@ Friends run this in **server mode**. You run this in **client mode**.
    dotnet publish IpSync.cs -c Release -r linux-x64 --self-contained
    dotnet publish IpSync.cs -c Release -r win-x64   --self-contained
    ```
-2. **Friends (Linux only):** run with `sudo`, choose **[S]erver**, follow prompts — config is saved
+2. **Friends:** run as admin/sudo, choose **[S]erver**, follow prompts — config is saved
 3. **You:** run normally, choose **[C]lient**, enter token and friends — config is saved
 4. After setup, just run with no arguments — no input needed
    ```
@@ -31,7 +31,7 @@ Friends run this in **server mode**. You run this in **client mode**.
 
 ## How It Works
 
-- **Server (friend's machine, Linux only):** listens on a port, validates a shared token, reads your public IP from the incoming TCP connection, and writes/updates an entry in `/etc/hosts` like `1.2.3.4  minecraft-home`
+- **Server (friend's machine):** listens on a port, validates a shared token, reads your public IP from the incoming TCP connection, and writes/updates the hosts file entry for `minecraft-home` (requires admin on Windows, sudo on Linux/macOS)
 - **Client (your machine):** POSTs your token to each friend's server. No IP lookup needed — the server sees your IP from the connection itself.
 
 ## Security

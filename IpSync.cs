@@ -12,14 +12,15 @@
 //
 // QUICK START:
 //   1. Put this file anywhere and run: dotnet run IpSync.cs
-//      (or compile with: dotnet publish IpSync.cs -c Release -r linux-x64 --self-contained)
-//   2. Friends: run with sudo, choose [S]erver, follow prompts — config is saved
+//      (or compile: dotnet publish IpSync.cs -c Release -r linux-x64 --self-contained
+//                   dotnet publish IpSync.cs -c Release -r win-x64   --self-contained)
+//   2. Friends (Linux only): run with sudo, choose [S]erver, follow prompts — config is saved
 //   3. You:     run normally, choose [C]lient, enter token and friends — config is saved
 //   4. After setup, just run with no arguments — no input needed
 //      To change config or add friends later: dotnet run IpSync.cs --setup
 //
 // HOW IT WORKS:
-//   - Server (friend's machine): listens on a port, validates a shared token,
+//   - Server (friend's machine, Linux only): listens on a port, validates a shared token,
 //     reads your public IP from the incoming TCP connection, and writes/updates
 //     an entry in /etc/hosts like "1.2.3.4  minecraft-home"
 //   - Client (your machine):     POSTs your token to each friend's server.
